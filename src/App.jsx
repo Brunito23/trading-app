@@ -13,8 +13,8 @@ const App = () => {
   const [valorOperacion, setValorOperacion] = useState('');
   const [porcentajeOperacion, setPorcentajeOperacion] = useState('');
   const [operaciones, setOperaciones] = useState(() => {
-    const stored = localStorage.getItem('operaciones');
-    return stored ? JSON.parse(stored) : [];
+    const saved = localStorage.getItem('operaciones');
+    return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
@@ -26,18 +26,14 @@ const App = () => {
   }, [operaciones]);
 
   const registrarOperacion = () => {
-    if (!valorOperacion || !porcentajeOperacion || !capitalBase) return;
-
-    const capitalInicial = operaciones.length > 0
-      ? parseFloat(operaciones[operaciones.length - 1].balance)
-      : parseFloat(capitalBase);
-
+    if (valorOperacion === '' || porcentajeOperacion === '' || capitalBase === '') return;
+    const capitalInicial = operaciones.length > 0 ? parseFloat(operaciones[operaciones.length - 1].balance) : parseFloat(capitalBase);
     const porcentaje = parseFloat(porcentajeOperacion) / 100;
     const resultado = parseFloat(valorOperacion) * porcentaje;
     const balance = capitalInicial + resultado;
     const riesgo = ((balance - capitalBase) / capitalBase) * 100;
 
-    const nueva = {
+    const nuevaOperacion = {
       fecha: new Date().toLocaleDateString(),
       capitalInicial: capitalInicial.toFixed(2),
       valor: parseFloat(valorOperacion).toFixed(2),
@@ -46,8 +42,7 @@ const App = () => {
       balance: balance.toFixed(2),
       riesgo: riesgo.toFixed(2),
     };
-
-    setOperaciones([...operaciones, nueva]);
+    setOperaciones([...operaciones, nuevaOperacion]);
     setValorOperacion('');
     setPorcentajeOperacion('');
   };
@@ -108,62 +103,62 @@ const App = () => {
       <img src={logo} alt="logo" style={{ position: 'absolute', top: 20, right: 20, width: '25%' }} />
       <h1 style={{ textAlign: 'center' }}>Gestión de Capital</h1>
 
-      <div style={{ background: '#007bff', padding: '10px', fontWeight: 'bold', width: 'fit-content', borderRadius: '5px' }}>
-        Capital base: ${capitalBase || '---'}
-        <input
-          type="number"
-          placeholder="Ingrese capital"
-          value={inputBase}
-          onChange={(e) => setInputBase(e.target.value)}
-          style={{ marginLeft: 10 }}
-        />
-        <button onClick={() => setCapitalBase(parseFloat(inputBase))}>✅ Establecer</button>
-        <button style={{ background: 'red', marginLeft: 10 }} onClick={borrarCapital}>❌ Borrar capital base</button>
-      </div>
-
-      <div style={{ margin: '15px 0' }}>
-        <div>
-          Valor operación: <input type="number" value={valorOperacion} onChange={(e) => setValorOperacion(e.target.value)} />
+      {/* BLOQUE DE ENTRADAS EXPANDIDO */}
+      <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '50%', background: '#007bff', padding: '10px', borderRadius: '4px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+          Capital base: ${capitalBase || '---'}
         </div>
-        <div>
-          % Operación: <input type="number" value={porcentajeOperacion} onChange={(e) => setPorcentajeOperacion(e.target.value)} />
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+          <input
+            type="number"
+            placeholder="Ingrese capital"
+            value={inputBase}
+            onChange={(e) => setInputBase(e.target.value)}
+            style={{ marginRight: 10, flex: 1 }}
+          />
+          <button onClick={() => setCapitalBase(parseFloat(inputBase))} style={{ marginRight: 10 }}>✅ Establecer</button>
+          <button style={{ background: 'red' }} onClick={borrarCapital}>❌ Borrar capital base</button>
         </div>
-        <button onClick={registrarOperacion}>Registrar operación</button>
+        <label>Valor operación:
+          <input type="number" value={valorOperacion} onChange={(e) => setValorOperacion(e.target.value)} style={{ width: '100%', marginBottom: 5 }} />
+        </label>
+        <label>% Operación:
+          <input type="number" value={porcentajeOperacion} onChange={(e) => setPorcentajeOperacion(e.target.value)} style={{ width: '100%' }} />
+        </label>
+        <button onClick={registrarOperacion} style={{ marginTop: 10 }}>Registrar operación</button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '300px' }}>
-        <table style={{ width: '49%', background: '#333', color: 'white', borderCollapse: 'collapse' }}>
-          <thead><tr><th colSpan="2" style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #888' }}>Resumen de metas</th></tr></thead>
-          <tbody>
-            <tr><td style={{ padding: '8px' }}>Meta 10%:</td><td style={{ padding: '8px' }}>${capitalBase ? (capitalBase * 1.10).toFixed(2) : '---'}</td></tr>
-            <tr><td style={{ padding: '8px' }}>Meta 20%:</td><td style={{ padding: '8px' }}>${capitalBase ? (capitalBase * 1.20).toFixed(2) : '---'}</td></tr>
-            <tr><td style={{ padding: '8px' }}>Pérdida máxima 5%:</td><td style={{ padding: '8px' }}>${capitalBase ? (capitalBase * 0.95).toFixed(2) : '---'}</td></tr>
-          </tbody>
-        </table>
-        <table style={{ width: '49%', background: '#333', color: 'white', borderCollapse: 'collapse' }}>
-          <thead><tr><th colSpan="2" style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #888' }}>Resumen de desempeño</th></tr></thead>
-          <tbody>
-            <tr><td style={{ backgroundColor: 'green', padding: '8px' }}>Operaciones ganadas:</td><td style={{ padding: '8px' }}>{resumen.ganadas}</td></tr>
-            <tr><td style={{ backgroundColor: 'darkred', padding: '8px' }}>Operaciones perdidas:</td><td style={{ padding: '8px' }}>{resumen.perdidas}</td></tr>
-            <tr><td style={{ padding: '8px' }}>Total:</td><td style={{ padding: '8px' }}>{resumen.total}</td></tr>
-            <tr><td style={{ padding: '8px' }}>Balance final:</td><td style={{ padding: '8px' }}>${resumen.balance}</td></tr>
-          </tbody>
-        </table>
+      {/* TABLAS DE RESÚMENES */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '30px' }}>
+        <div style={{ background: '#333', padding: 15, width: '49%' }}>
+          <h4>Resumen de metas</h4>
+          <p>Meta 10%: ${capitalBase ? (capitalBase * 1.10).toFixed(2) : '---'}</p>
+          <p>Meta 20%: ${capitalBase ? (capitalBase * 1.20).toFixed(2) : '---'}</p>
+          <p>Pérdida máxima 5%: ${capitalBase ? (capitalBase * 0.95).toFixed(2) : '---'}</p>
+        </div>
+        <div style={{ background: '#333', padding: 15, width: '49%' }}>
+          <h4>Resumen de desempeño</h4>
+          <p style={{ backgroundColor: 'green' }}>Operaciones ganadas: {resumen.ganadas}</p>
+          <p style={{ backgroundColor: 'darkred' }}>Operaciones perdidas: {resumen.perdidas}</p>
+          <p>Total: {resumen.total}</p>
+          <p>Balance final: ${resumen.balance}</p>
+        </div>
       </div>
 
-      <h2>Historial de operaciones</h2>
+      {/* HISTORIAL DE OPERACIONES */}
+      <h2 style={{ marginTop: '30px' }}>Historial de operaciones</h2>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
         <thead style={{ background: '#444' }}>
           <tr>
             {['Fecha', 'Capital', 'Valor', '% Operación', 'Resultado', 'Balance', 'Riesgo (%)', 'Eliminar'].map(col => (
-              <th key={col} style={{ border: '1px solid #888', textAlign: 'center', padding: '6px' }}>{col}</th>
+              <th key={col} style={{ border: '1px solid #888', textAlign: 'center' }}>{col}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {operaciones.map((op, i) => (
             <tr key={i} style={{ background: parseFloat(op.resultado) >= 0 ? 'darkgreen' : 'brown', textAlign: 'center' }}>
-              <td style={{ padding: '6px' }}>{op.fecha}</td>
+              <td>{op.fecha}</td>
               <td>${op.capitalInicial}</td>
               <td>${op.valor}</td>
               <td>{op.porcentaje}%</td>
