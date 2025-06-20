@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -5,157 +6,176 @@ import logo from './assets/logo.png';
 
 function App() {
   const [capitalBase, setCapitalBase] = useState(() => {
-    const saved = localStorage.getItem('capitalBase');
-    return saved ? parseFloat(saved) : '';
+    const stored = localStorage.getItem('capitalBase');
+    return stored ? parseFloat(stored) : '';
   });
   const [valorOperacion, setValorOperacion] = useState('');
-  const [porcentaje, setPorcentaje] = useState('');
-  const [operaciones, setOperaciones] = useState([]);
+  const [porcentajeOperacion, setPorcentajeOperacion] = useState('');
+  const [operaciones, setOperaciones] = useState(() => {
+    const stored = localStorage.getItem('operaciones');
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  const [editable, setEditable] = useState(!capitalBase);
 
   useEffect(() => {
-    if (capitalBase !== '') {
-      localStorage.setItem('capitalBase', capitalBase);
-    }
+    localStorage.setItem('capitalBase', capitalBase);
   }, [capitalBase]);
 
-  const borrarCapitalBase = () => {
-    localStorage.removeItem('capitalBase');
-    setCapitalBase('');
-    setOperaciones([]);
-  };
+  useEffect(() => {
+    localStorage.setItem('operaciones', JSON.stringify(operaciones));
+  }, [operaciones]);
 
   const registrarOperacion = () => {
-    if (!capitalBase || !valorOperacion || !porcentaje) return;
-    const operado = parseFloat(valorOperacion);
-    const pct = parseFloat(porcentaje);
-    const ultimaOperacion = operaciones[operaciones.length - 1];
-    const capitalInicial = operaciones.length ? ultimaOperacion.balance : capitalBase;
-    const resultado = parseFloat(((pct / 100) * operado).toFixed(2));
-    const balance = parseFloat((capitalInicial + resultado).toFixed(2));
-    const riesgo = parseFloat((((balance - capitalBase) / capitalBase) * 100).toFixed(2));
+    if (!valorOperacion || !porcentajeOperacion) return;
+    const capInicial = operaciones.length
+      ? operaciones[operaciones.length - 1].balance
+      : parseFloat(capitalBase);
+    const resultado = (parseFloat(valorOperacion) * parseFloat(porcentajeOperacion)) / 100;
+    const nuevoBalance = capInicial + resultado;
+    const riesgo = ((nuevoBalance - capitalBase) / capitalBase) * 100;
 
     const nuevaOperacion = {
       fecha: new Date().toLocaleDateString(),
-      capitalInicial: capitalInicial.toFixed(2),
-      valor: operado.toFixed(2),
-      porcentaje: pct.toFixed(2),
+      capital: capInicial.toFixed(2),
+      valor: parseFloat(valorOperacion).toFixed(2),
+      porcentaje: parseFloat(porcentajeOperacion).toFixed(2),
       resultado: resultado.toFixed(2),
-      balance: balance.toFixed(2),
-      riesgo: riesgo.toFixed(2)
+      balance: nuevoBalance.toFixed(2),
+      riesgo: riesgo.toFixed(2),
     };
 
     setOperaciones([...operaciones, nuevaOperacion]);
     setValorOperacion('');
-    setPorcentaje('');
-  };
-
-  const eliminarOperacion = (index) => {
-    const nuevas = operaciones.filter((_, i) => i !== index);
-    setOperaciones(nuevas);
+    setPorcentajeOperacion('');
   };
 
   const exportarPDF = () => {
     const doc = new jsPDF();
     doc.text('Historial de Operaciones', 14, 10);
     doc.autoTable({
-      startY: 15,
-      head: [['Fecha', 'Capital Inicial', 'Valor', '% Operación', 'Resultado', 'Balance', 'Riesgo (%)']],
-      body: operaciones.map(op => [op.fecha, `$${op.capitalInicial}`, `$${op.valor}`, `${op.porcentaje}%`, `$${op.resultado}`, `$${op.balance}`, `${op.riesgo}%`])
+      head: [['Fecha', 'Capital', 'Valor', '% Operación', 'Resultado', 'Balance', 'Riesgo (%)']],
+      body: operaciones.map(op => [
+        op.fecha,
+        `$${op.capital}`,
+        `$${op.valor}`,
+        `${op.porcentaje}%`,
+        `$${op.resultado}`,
+        `$${op.balance}`,
+        `${op.riesgo}%`,
+      ]),
     });
     doc.save('historial.pdf');
   };
 
+  const borrarOperacion = (index) => {
+    const nuevas = operaciones.filter((_, i) => i !== index);
+    setOperaciones(nuevas);
+  };
+
+  const borrarCapitalBase = () => {
+    localStorage.removeItem('capitalBase');
+    setCapitalBase('');
+    setEditable(true);
+    setOperaciones([]);
+  };
+
   const ganadas = operaciones.filter(op => parseFloat(op.resultado) > 0).length;
   const perdidas = operaciones.filter(op => parseFloat(op.resultado) < 0).length;
-  const balanceTotal = operaciones.length ? operaciones[operaciones.length - 1].balance : 0;
+  const balanceTotal = operaciones.reduce((acc, op) => acc + parseFloat(op.resultado), 0);
 
   return (
-    <div style={{ backgroundColor: 'black', color: 'white', minHeight: '100vh', padding: '20px', fontFamily: 'Arial' }}>
+    <div style={{ background: '#000', color: '#fff', fontFamily: 'Arial, sans-serif', padding: 20 }}>
       <img
         src={logo}
         alt="Logo"
-        style={{ position: 'absolute', top: '10px', right: '10px', width: '60px', height: 'auto', zIndex: 10 }}
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          width: '60px',
+          height: 'auto',
+          zIndex: 10
+        }}
       />
       <h1 style={{ textAlign: 'center' }}>Gestión de Capital</h1>
 
-      {capitalBase !== '' ? (
-        <div style={{ background: '#007bff', padding: '10px', color: 'white', fontWeight: 'bold' }}>
-          Capital base: ${parseFloat(capitalBase).toFixed(2)}
-          <button onClick={borrarCapitalBase} style={{ marginLeft: '20px', background: 'transparent', color: 'white' }}>❌ Borrar capital base</button>
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center' }}>
-          <label>Capital base:&nbsp;
-            <input
-              type="number"
-              value={capitalBase}
-              onChange={e => setCapitalBase(parseFloat(e.target.value))}
-            />
-          </label>
-        </div>
+      <div style={{ background: '#007bff', padding: '10px', color: '#fff', fontWeight: 'bold' }}>
+        Capital base: ${capitalBase || '0.00'}
+        <button onClick={borrarCapitalBase} style={{ marginLeft: 10 }}>❌ Borrar capital base</button>
+      </div>
+
+      {editable && (
+        <input
+          type="number"
+          placeholder="Capital base"
+          value={capitalBase}
+          onChange={e => setCapitalBase(parseFloat(e.target.value))}
+        />
       )}
 
-      {capitalBase !== '' && (
-        <div style={{ textAlign: 'center', marginTop: '20px' }}>
-          <div>
-            Valor operación:&nbsp;
-            <input type="number" value={valorOperacion} onChange={e => setValorOperacion(e.target.value)} placeholder="Ej. 25" />
-          </div>
-          <div>
-            % Operación:&nbsp;
-            <input type="number" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} placeholder="Ej. 84 o -100" />
-          </div>
-          <button onClick={registrarOperacion} style={{ marginTop: '10px' }}>Registrar operación</button>
+      <div style={{ marginTop: 20 }}>
+        <div>
+          Valor operación:
+          <input type="number" value={valorOperacion} onChange={e => setValorOperacion(e.target.value)} />
         </div>
-      )}
+        <div>
+          % Operación:
+          <input type="number" value={porcentajeOperacion} onChange={e => setPorcentajeOperacion(e.target.value)} />
+        </div>
+        <button onClick={registrarOperacion}>Registrar operación</button>
+      </div>
 
-      {capitalBase !== '' && (
-        <>
-          <table style={{ width: '100%', marginTop: '30px', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead><tr><th colSpan="2" style={{ textAlign: 'left', background: '#111' }}>Resumen de metas</th></tr></thead>
-            <tbody>
-              <tr><td>Meta 10%:</td><td>${(capitalBase * 1.10).toFixed(2)}</td></tr>
-              <tr><td>Meta 20%:</td><td>${(capitalBase * 1.20).toFixed(2)}</td></tr>
-              <tr><td>Pérdida máxima 5%:</td><td>${(capitalBase * 0.95).toFixed(2)}</td></tr>
-            </tbody>
-          </table>
+      <div style={{ marginTop: 20 }}>
+        <h3>Resumen de metas</h3>
+        <ul>
+          <li>Meta 10%: ${(capitalBase * 1.10).toFixed(2)}</li>
+          <li>Meta 20%: ${(capitalBase * 1.20).toFixed(2)}</li>
+          <li>Pérdida máxima 5%: ${(capitalBase * 0.95).toFixed(2)}</li>
+        </ul>
 
-          <table style={{ width: '100%', marginTop: '30px', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead><tr><th colSpan="2" style={{ textAlign: 'left', background: '#111' }}>Resumen de desempeño</th></tr></thead>
-            <tbody>
-              <tr><td>Operaciones ganadas</td><td style={{ backgroundColor: '#2e593f' }}>{ganadas}</td></tr>
-              <tr><td>Operaciones perdidas</td><td style={{ backgroundColor: '#5a2e2e' }}>{perdidas}</td></tr>
-              <tr><td>Total de operaciones</td><td>{operaciones.length}</td></tr>
-              <tr><td>Balance total</td><td>${balanceTotal}</td></tr>
-            </tbody>
-          </table>
+        <h3>Resumen de desempeño</h3>
+        <ul>
+          <li style={{ background: '#2e593e' }}>Operaciones ganadas: {ganadas}</li>
+          <li style={{ background: '#5b2c2c' }}>Operaciones perdidas: {perdidas}</li>
+          <li>Total de operaciones: {operaciones.length}</li>
+          <li>Balance total: ${balanceTotal.toFixed(2)}</li>
+        </ul>
+      </div>
 
-          <h3>Historial de operaciones</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead>
-              <tr><th>Día</th><th>Capital</th><th>Valor</th><th>% Operación</th><th>Resultado</th><th>Balance</th><th>Riesgo (%)</th><th>Eliminar</th></tr>
-            </thead>
-            <tbody>
-              {operaciones.map((op, index) => (
-                <tr key={index}>
-                  <td>{op.fecha}</td>
-                  <td>${op.capitalInicial}</td>
-                  <td>${op.valor}</td>
-                  <td>{op.porcentaje}%</td>
-                  <td>${op.resultado}</td>
-                  <td>${op.balance}</td>
-                  <td>{op.riesgo}%</td>
-                  <td><button onClick={() => eliminarOperacion(index)}>❌</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <h3>Historial de operaciones</h3>
+      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Capital</th>
+            <th>Valor</th>
+            <th>% Operación</th>
+            <th>Resultado</th>
+            <th>Balance</th>
+            <th>Riesgo (%)</th>
+            <th>Eliminar</th>
+          </tr>
+        </thead>
+        <tbody>
+          {operaciones.map((op, i) => (
+            <tr key={i} style={{ backgroundColor: parseFloat(op.resultado) >= 0 ? '#003d00' : '#3d0000' }}>
+              <td>{op.fecha}</td>
+              <td>${op.capital}</td>
+              <td>${op.valor}</td>
+              <td>{op.porcentaje}%</td>
+              <td>${op.resultado}</td>
+              <td>${op.balance}</td>
+              <td>{op.riesgo}%</td>
+              <td><button onClick={() => borrarOperacion(i)}>❌</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-          <div style={{ marginTop: '20px', float: 'right' }}>
-            <button onClick={exportarPDF}>📤 Exportar a PDF</button>
-          </div>
-        </>
-      )}
+      <button style={{ marginTop: '20px', float: 'right' }} onClick={exportarPDF}>
+        📤 Exportar a PDF
+      </button>
     </div>
   );
 }
